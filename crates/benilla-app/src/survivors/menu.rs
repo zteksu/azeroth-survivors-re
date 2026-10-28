@@ -75,8 +75,9 @@ fn save_pick(sel: &Selection) {
     }
 }
 
-/// Restore the saved pick once the creature data can resolve its looks; a stale or missing file
-/// leaves the default.
+/// Restore the saved pick once the creature data can resolve its looks. A first run, or a stale
+/// file, gets a Human Warrior: with nothing picked there is no hero to show and Enter World stays
+/// disabled, which reads as a broken screen rather than one waiting for a click.
 pub(super) fn restore_pick(
     creatures: Option<Res<crate::entities::Creatures>>,
     mut selection: ResMut<Selection>,
@@ -89,26 +90,36 @@ pub(super) fn restore_pick(
         return;
     };
     *done = true;
-    let Some(text) = pick_path().and_then(|p| crate::local_state::read_to_string(&p).ok()) else {
-        return;
-    };
-    let v: Vec<usize> = text
-        .split_whitespace()
-        .filter_map(|t| t.parse().ok())
-        .collect();
-    let [class, race, sex, map] = v[..] else {
-        return;
-    };
-    if map < data::MAPS.len() {
-        selection.map = map;
-        selection.stage = map;
-        selection.version += 1;
-    }
-    if class < data::CLASSES.len() {
-        let all = all_looks(creatures);
-        if let Some(l) = find(&all[class], Some(race as u8), Some(sex as u8)) {
-            set(&mut selection, &all, class, l);
+    let all = all_looks(creatures);
+    let saved: Vec<usize> = pick_path()
+        .and_then(|p| crate::local_state::read_to_string(&p).ok())
+        .map(|text| {
+            text.split_whitespace()
+                .filter_map(|t| t.parse().ok())
+                .collect()
+        })
+        .unwrap_or_default();
+    if let [class, race, sex, map] = saved[..] {
+        if map < data::MAPS.len() {
+            selection.map = map;
+            selection.stage = map;
+            selection.version += 1;
         }
+        if class < data::CLASSES.len() {
+            if let Some(l) = find(&all[class], Some(race as u8), Some(sex as u8)) {
+                set(&mut selection, &all, class, l);
+                return;
+            }
+        }
+    }
+    let warrior = data::CLASSES.iter().position(|c| c.id == 1);
+    let first = warrior.into_iter().chain(0..all.len()).find_map(|c| {
+        find(&all[c], Some(1), Some(0))
+            .or_else(|| find(&all[c], None, None))
+            .map(|l| (c, l))
+    });
+    if let Some((c, l)) = first {
+        set(&mut selection, &all, c, l);
     }
 }
 
