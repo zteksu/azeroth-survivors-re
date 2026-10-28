@@ -9,6 +9,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.storage.StorageManager;
+import android.os.storage.StorageVolume;
+import android.provider.DocumentsContract;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.Gravity;
@@ -55,6 +58,9 @@ public class MainActivity extends Activity {
     private WebView web;
     private TextView status;
     private boolean waitingForData;
+    private static final int PICK_FOLDER = 1;
+    private static final String PREFS = "survivors";
+    private static final String KEY_DATA = "dataPath";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -127,8 +133,13 @@ public class MainActivity extends Activity {
         }, "boot").start();
     }
 
-    /** The first folder holding the client's MPQs. App-private first: it needs no permission. */
+    /** The folder picked in the app first, then the first well-known place holding the MPQs. */
     private File findData() {
+        String picked = getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_DATA, null);
+        if (picked != null) {
+            File dir = dataIn(new File(picked));
+            if (dir != null) return dir;
+        }
         List<File> roots = new ArrayList<>();
         File priv = getExternalFilesDir(null);
         if (priv != null) roots.add(priv);
@@ -137,11 +148,106 @@ public class MainActivity extends Activity {
         roots.add(new File(sd, "WoW"));
         roots.add(new File(sd, "wow"));
         for (File root : roots) {
-            for (File dir : new File[] {new File(root, "Data"), new File(root, "wow-data/Data"), root}) {
-                if (hasMpq(dir)) return dir;
-            }
+            File dir = dataIn(root);
+            if (dir != null) return dir;
         }
         return null;
+    }
+
+    /** `root/Data`, `root/wow-data/Data` or `root` itself, whichever holds MPQs. */
+    private static File dataIn(File root) {
+        for (File dir : new File[] {new File(root, "Data"), new File(root, "wow-data/Data"), root}) {
+            if (hasMpq(dir)) return dir;
+        }
+        return null;
+    }
+
+    // ── Folder picker ──
+    //
+    // The same way WoW Forever for Android does it: the system folder picker names the folder,
+    // its tree URI is turned back into a plain path (the host opens files by path, not through
+    // the content resolver), and "All files access" is what lets the host read that path.
+
+    private void pickFolder() {
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        try {
+            startActivityForResult(i, PICK_FOLDER);
+        } catch (Exception e) {
+            showStatus("This device has no folder picker. Copy the data to /sdcard/wow-data/Data "
+                    + "instead.", true);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        super.onActivityResult(requestCode, resultCode, intent);
+        if (requestCode != PICK_FOLDER || resultCode != RESULT_OK || intent == null) return;
+        String path = pathFromTreeUri(intent.getData());
+        if (path == null) {
+            showStatus("Could not turn that folder into a file path. Pick a folder on the "
+                    + "internal storage or the SD card.", true);
+            return;
+        }
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(KEY_DATA, path).apply();
+        Log.i(TAG, "picked data folder " + path);
+        if (!hasAllFilesAccess()) {
+            // onResume boots again when the user comes back from the settings page.
+            waitingForData = true;
+            requestAllFilesAccess();
+            return;
+        }
+        if (dataIn(new File(path)) == null) {
+            waitingForData = true;
+            showDataHelp();
+            return;
+        }
+        boot();
+    }
+
+    private String pathFromTreeUri(Uri uri) {
+        if (uri == null) return null;
+        try {
+            String docId = DocumentsContract.getTreeDocumentId(uri);
+            int colon = docId.indexOf(':');
+            if (colon < 0) return docId.startsWith("/") ? docId : null;
+            String volume = docId.substring(0, colon);
+            String sub = docId.substring(colon + 1);
+            String root = "primary".equals(volume)
+                    ? Environment.getExternalStorageDirectory().getPath()
+                    : volumeRoot(volume);
+            return sub.isEmpty() ? root : root + "/" + sub;
+        } catch (Exception e) {
+            Log.w(TAG, "tree uri " + uri, e);
+            return null;
+        }
+    }
+
+    /** An SD card's mount point from its volume id (the `1234-ABCD` in its tree URI). */
+    private String volumeRoot(String volumeId) {
+        String fallback = "/storage/" + volumeId;
+        if (new File(fallback).exists() || Build.VERSION.SDK_INT < 30) return fallback;
+        StorageManager sm = getSystemService(StorageManager.class);
+        if (sm != null) {
+            for (StorageVolume v : sm.getStorageVolumes()) {
+                if (volumeId.equalsIgnoreCase(v.getUuid()) && v.getDirectory() != null) {
+                    return v.getDirectory().getAbsolutePath();
+                }
+            }
+        }
+        return fallback;
+    }
+
+    private boolean hasAllFilesAccess() {
+        return Build.VERSION.SDK_INT < 30 || Environment.isExternalStorageManager();
+    }
+
+    private void requestAllFilesAccess() {
+        try {
+            startActivity(new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
+                    Uri.parse("package:" + getPackageName())));
+        } catch (Exception e) {
+            startActivity(new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION));
+        }
     }
 
     private static boolean hasMpq(File dir) {
@@ -276,28 +382,36 @@ public class MainActivity extends Activity {
     }
 
     private void showDataHelp() {
+        String picked = getSharedPreferences(PREFS, MODE_PRIVATE).getString(KEY_DATA, null);
         File priv = getExternalFilesDir(null);
-        String privPath = priv == null ? "(unavailable)" : priv.getAbsolutePath() + "/Data";
-        String text = "Game data not found.\n\n"
-                + "Copy the WoW 1.12.1 client's Data folder (the one `make fetch-data` puts in "
-                + "wow-data/Data, with the .MPQ files inside) to either:\n\n"
-                + "  • " + privPath + "\n"
-                + "    no permission needed. From a PC:\n"
-                + "    adb push wow-data/Data " + (priv == null ? "…" : priv.getAbsolutePath()) + "/\n\n"
-                + "  • /sdcard/wow-data/Data\n"
-                + "    easy to copy with a file manager, but needs \"All files access\" below.\n\n"
-                + "This screen retries every time you come back to the app.";
+        StringBuilder text = new StringBuilder();
+        if (picked == null) {
+            text.append("Choose your WoW 1.12.1 folder: the one holding Data/ with the .MPQ "
+                    + "files (wow-data from `make fetch-data`), or the Data folder itself.\n\n");
+        } else if (!hasAllFilesAccess()) {
+            text.append("Game folder: ").append(picked).append("\n\nAllow \"All files access\" "
+                    + "so the game can read it.\n\n");
+        } else {
+            text.append("No .MPQ files in ").append(picked).append(" (nor in its Data or "
+                    + "wow-data/Data). Choose the folder that holds Data/.\n\n");
+        }
+        text.append("Or, without any permission, copy the Data folder into the app's own folder "
+                + "from a PC:\n    adb push wow-data/Data ")
+                .append(priv == null ? "…" : priv.getAbsolutePath()).append("/");
         LinearLayout col = column();
-        col.addView(label(text));
-        if (Build.VERSION.SDK_INT >= 30 && !Environment.isExternalStorageManager()) {
+        col.addView(label(text.toString()));
+        Button choose = button(picked == null ? "Choose game folder" : "Choose another folder",
+                v -> pickFolder());
+        col.addView(choose);
+        if (!hasAllFilesAccess()) {
             col.addView(button("Grant all files access", v -> {
-                Intent i = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-                        Uri.parse("package:" + getPackageName()));
-                startActivity(i);
+                waitingForData = true;
+                requestAllFilesAccess();
             }));
         }
         col.addView(button("Retry", v -> boot()));
         setScreen(col);
+        choose.requestFocus(); // so a controller's A works without touching the screen
     }
 
     private void showStatus(String text, boolean retry) {

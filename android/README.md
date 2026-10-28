@@ -34,15 +34,22 @@ The APK is signed with the local debug key: fine for sideloading, not for a stor
 
 ```bash
 adb install -r android/azeroth-survivors.apk
-# Either: the app's own folder (no permission needed)
-adb push wow-data/Data /sdcard/Android/data/survivors.android.local/files/
-# Or: a plain folder you can also fill with a file manager; the app asks for "All files access"
-adb push wow-data/Data /sdcard/wow-data/
 ```
 
-Without adb, put `Data` at `/sdcard/wow-data/Data` with a file manager and allow "All files
-access" when the app asks. The app looks in, in order: its own folder, `/sdcard/wow-data`,
-`/sdcard/WoW`, `/sdcard/wow`, each as `<dir>/Data` or the MPQs directly in `<dir>`.
+Copy the `Data` folder anywhere on the device or its SD card (a file manager, a USB cable, adb),
+open the app and tap **Choose game folder**. That is Android's own folder picker; pick the folder
+holding `Data/`, or `Data` itself. The app then asks for **All files access** (the same thing WoW
+Forever for Android asks for, for the same reason: the game server opens the files by path) and
+starts. The choice is remembered; *Choose another folder* appears whenever it stops finding MPQs.
+
+Without granting any permission, push `Data` into the app's own folder instead:
+
+```bash
+adb push wow-data/Data /sdcard/Android/data/survivors.android.local/files/
+```
+
+When nothing has been picked, the app also looks in its own folder, `/sdcard/wow-data`,
+`/sdcard/WoW` and `/sdcard/wow`, each as `<dir>/Data` or the MPQs directly in `<dir>`.
 
 ## When it doesn't work
 
