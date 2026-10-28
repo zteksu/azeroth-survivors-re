@@ -35,6 +35,6 @@ android {
         jniLibs { useLegacyPackaging true }
     }
 
-    // The wasm is already brotli'd beside the plain file; don't deflate either again.
-    androidResources { noCompress += ["wasm", "br"] }
+    // A .br sibling (web-build.sh writes one when brotli is installed) is already compressed.
+    androidResources { noCompress += ["br"] }
 }

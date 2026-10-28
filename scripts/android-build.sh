@@ -37,7 +37,8 @@ mkdir -p "${JNI}"
 cp target/aarch64-linux-android/release/wenilla-host "${JNI}/libwenillahost.so"
 "${NDK}/toolchains/llvm/prebuilt/${HOST_TAG}/bin/llvm-strip" "${JNI}/libwenillahost.so"
 
-# The page bundle. The WebView sends Accept-Encoding: br, so the .gz siblings are dead weight.
+# The page bundle. No .gz siblings: AGP reads `foo.gz` as a packed `foo` and fails on the
+# duplicate, and over loopback the precompressed copies save nothing anyway.
 WWW=android/app/src/main/assets/www
 rm -rf "${WWW}" && mkdir -p "${WWW}"
 cp -R web/dist/. "${WWW}/"
