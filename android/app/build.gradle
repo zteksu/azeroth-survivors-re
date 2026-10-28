@@ -1,0 +1,40 @@
+plugins {
+    id "com.android.application"
+}
+
+android {
+    namespace "survivors.android"
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "survivors.android.local"
+        minSdk 29
+        targetSdk 35
+        versionCode 1
+        versionName "0.2.0"
+        ndk { abiFilters "arm64-v8a" }
+    }
+
+    buildTypes {
+        // Private sideload build: the debug key signs both, release just turns on shrinking-free
+        // optimisation flags for the Java side (there is almost none).
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    packaging {
+        // `libwenillahost.so` is the wenilla-host executable, not a JNI library. Legacy packaging
+        // extracts it to nativeLibraryDir, the one app directory Android lets a process exec from.
+        jniLibs { useLegacyPackaging true }
+    }
+
+    // The wasm is already brotli'd beside the plain file; don't deflate either again.
+    androidResources { noCompress += ["wasm", "br"] }
+}

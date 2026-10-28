@@ -1,0 +1,9 @@
+# Gradle and build output
+/.gradle/
+/build/
+/app/build/
+/local.properties
+# Filled by scripts/android-build.sh from web/dist and the cross-compiled wenilla-host
+/app/src/main/assets/
+/app/src/main/jniLibs/
+/azeroth-survivors.apk

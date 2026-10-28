@@ -68,6 +68,9 @@ make start     # → open http://127.0.0.1:8090/
 
 Run `make` (or `make help`) to list every target.
 
+**Android:** `make apk` wraps the same browser build in a sideloadable APK (bundled local server +
+full-screen WebView, game data copied to the device separately). See [android/README.md](android/README.md).
+
 ## Controls
 
 See [CONTROLS.md](CONTROLS.md). The short version: **WASD** to move, **Space** to jump, **F**
