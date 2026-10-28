@@ -1,0 +1,75 @@
+/* android.css: the APK's overlay over the game page (android.js). WoW glue colours: gold text on
+   dark panels with a thin gold edge. */
+.sa-touch, .sa-menu, .sa-cursor, .sa-fps { font-family: 'Friz Quadrata TT', Georgia, serif; }
+[hidden] { display: none !important; }
+
+.sa-cursor {
+  position: fixed; left: 0; top: 0; z-index: 30; pointer-events: none;
+  width: 0; height: 0;
+}
+.sa-cursor::before {
+  content: ''; position: absolute; left: -11px; top: -11px; width: 18px; height: 18px;
+  border: 2px solid #ffd76a; border-radius: 50%; box-shadow: 0 0 6px #000, inset 0 0 4px #000;
+}
+.sa-cursor::after {
+  content: ''; position: absolute; left: -2px; top: -2px; width: 4px; height: 4px;
+  background: #ffd76a; border-radius: 50%;
+}
+
+.sa-fps {
+  position: fixed; top: 6px; left: 60px; z-index: 30;
+  color: #ffd76a; font: 12px/1 monospace; text-shadow: 0 0 3px #000, 0 0 3px #000;
+  pointer-events: none;
+}
+
+.sa-touch { position: fixed; inset: 0; z-index: 20; pointer-events: none; user-select: none; }
+.sa-touch * { pointer-events: auto; touch-action: none; -webkit-tap-highlight-color: transparent; }
+.sa-stick {
+  position: absolute; left: max(3vh, env(safe-area-inset-left)); bottom: 4vh;
+  width: 30vh; height: 30vh; border-radius: 50%;
+  background: radial-gradient(circle, rgba(0,0,0,.15), rgba(0,0,0,.4));
+  border: 2px solid rgba(255, 215, 106, .35);
+}
+.sa-knob {
+  position: absolute; left: 30%; top: 30%; width: 40%; height: 40%; border-radius: 50%;
+  background: rgba(255, 215, 106, .35); border: 2px solid rgba(255, 215, 106, .7);
+  pointer-events: none;
+}
+.sa-buttons {
+  position: absolute; right: max(4vh, env(safe-area-inset-right)); bottom: 6vh;
+  display: flex; gap: 3vh; align-items: flex-end; pointer-events: none;
+}
+.sa-btn {
+  border-radius: 50%; border: 2px solid rgba(255, 215, 106, .7); color: #ffd76a;
+  background: rgba(20, 12, 4, .45); font: inherit; text-shadow: 0 0 3px #000;
+}
+.sa-btn.down { background: rgba(255, 215, 106, .35); }
+.sa-jump { width: 15vh; height: 15vh; font-size: 3vh; }
+.sa-spell { width: 12vh; height: 12vh; font-size: 4vh; margin-bottom: 9vh; }
+.sa-top {
+  position: absolute; right: max(2vh, env(safe-area-inset-right)); top: 50%;
+  transform: translateY(-50%); display: flex; flex-direction: column; gap: 2vh;
+  pointer-events: none;
+}
+.sa-small { width: 8vh; height: 8vh; font-size: 3vh; line-height: 1; padding: 0; }
+
+.sa-menu {
+  position: fixed; inset: 0; z-index: 40; background: rgba(0, 0, 0, .5);
+  display: flex; justify-content: flex-end;
+}
+.sa-panel {
+  width: min(380px, 85vw); height: 100%; box-sizing: border-box; overflow-y: auto;
+  padding: 20px 18px; background: linear-gradient(#1d140b, #0d0905);
+  border-left: 2px solid #8a6a2c; box-shadow: -8px 0 24px #000;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.sa-title { color: #ffd100; font-size: 22px; margin-bottom: 10px; text-shadow: 0 0 4px #000; }
+.sa-item {
+  text-align: left; font: inherit; font-size: 17px; color: #ffd76a; padding: 10px 14px;
+  background: rgba(60, 40, 15, .5); border: 1px solid #5a4420; border-radius: 4px;
+}
+.sa-item.focus { background: rgba(140, 100, 30, .55); border-color: #ffd100; color: #fff; }
+.sa-help { margin-top: 8px; color: #e8d8b0; font-size: 14px; border-collapse: collapse; }
+.sa-help td { padding: 3px 6px; border-bottom: 1px solid rgba(138, 106, 44, .4); }
+.sa-help td:first-child { color: #ffd100; white-space: nowrap; }
+.sa-version { margin-top: auto; padding-top: 12px; color: #8a7a5a; font-size: 12px; }

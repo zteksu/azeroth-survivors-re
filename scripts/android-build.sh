@@ -43,6 +43,12 @@ WWW=android/app/src/main/assets/www
 rm -rf "${WWW}" && mkdir -p "${WWW}"
 cp -R web/dist/. "${WWW}/"
 find "${WWW}" -name '*.gz' -delete
+# The APK's overlay (controller mapping, touch controls, the side menu): added to this copy of the
+# dev page only, never to web/ itself.
+cp android/web/android.js android/web/android.css "${WWW}/"
+sed -i.bak 's|<link rel="icon"[^>]*>|&\n<link rel="stylesheet" href="android.css">\n<script src="android.js" defer></script>|' "${WWW}/index.html"
+rm -f "${WWW}/index.html.bak"
+grep -q 'src="android.js"' "${WWW}/index.html" || { echo "could not add android.js to index.html" >&2; exit 1; }
 
 (cd android && ./gradlew --no-daemon assembleRelease)
 cp android/app/build/outputs/apk/release/app-release.apk android/azeroth-survivors.apk
